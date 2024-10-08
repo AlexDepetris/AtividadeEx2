@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coletas de Antimônio</title>
+    <style>
+        body {                              /* Interface do site */
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #007BFF;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .search-section {
+            background-color: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+        }
+        .search-section input[type="text"] {
+            flex-grow: 1;
+            padding: 10px;
+            margin-right: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .search-section button {
+            padding: 10px 20px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .search-section button:hover {
+            background-color: #0056b3;
+        }
+        .map {
+            width: 100%;
+            height: 400px;
+            background-color: #e9e9e9;
+            margin: 0; 
+            padding: 0; 
+            border-radius: 8px;
+        }
+        .locations {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .info-section {
+            background-color: #fff;
+            padding: 20px;
+            margin-top: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            display: block;
+        }
+        .hidden {
+    display: none;
+}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Encontre o posto de coleta mais próximo de você</h1>
+    </div>
+    <div class="container">
+        <div class="search-section">
+            <label for="cep">CEP:</label>
+            <input type="text" id="cep" placeholder="Digite seu CEP">
+            <button id="findLocation">ENCONTRAR POSTOS</button>
+        </div>
+        <div id="map" class="map"></div> <!-- Aqui será exibida a lista de postos de coleta -->
+        <div class="locations hidden">
+            <h2 id="postos-title" style="display:none;">Postos de recebimentos próximos</h2>
+            <div id="output"></div>
+        </div>
+        <div id="info-section" class="info-section">
+            <p>O descarte inadequado de antimônio pode levar a uma série de problemas ambientais e de saúde, pois o antimônio é considerado um metal pesado tóxico. Em caso de descarte inadequado, pode contaminar o solo, a água e o ar, além de causar efeitos danosos ao meio ambiente e à saúde humana. Os problemas causados pelo manuseio inadequado do antimônio incluem:</p>
+            <ul>
+                <li><strong>Contaminação do solo:</strong> O descarte irresponsável de antimônio causa a contaminação do solo próximo ao local de descarte, tornando-o impróprio para a agricultura e afetando a vida animal e vegetal.</li>
+                <li><strong>Poluição da água:</strong> A lixiviação de antimônio no solo pode levar à contaminação de águas subterrâneas e corpos d’água, como rios e lagos, afetando negativamente o ecossistema aquático.</li>
+                <li><strong>Efeitos na vida selvagem:</strong> O antimônio pode se acumular em tecidos vivos, causar problemas de saúde e reduzir a biodiversidade nos ecossistemas afetados.</li>
+                <li><strong>Riscos à saúde humana:</strong> A exposição prolongada ao antimônio pode causar problemas de saúde, como danos aos pulmões, irritação da pele e dos olhos, e problemas gastrointestinais.</li>
+            </ul>
+        </div>
+    </div>
+    
+    <script>
+        let map;
+        let geocoder;
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: {lat: -25.401734, lng: -49.178762}, // Ponto central inicial (Pinhais)
+                zoom: 15
+            });
+            geocoder = new google.maps.Geocoder();
+        }
+
+        document.getElementById("findLocation").addEventListener("click", function() {
+            geocodeAddress();
+        });
+
+        function geocodeAddress() {
+            const address = document.getElementById('cep').value;
+            if (address === "") {
+                alert("Por favor, insira um CEP válido.");
+                return;
+            }
+            geocoder.geocode({ 'address': address }, function(results, status) {
+                if (status === 'OK') {
+                    map.setCenter(results[0].geometry.location);
+                    new google.maps.Marker({
+                        map: map,
+                        position: results[0].geometry.location
+                    });
+
+                    // Esconde a seção de informações
+                    document.getElementById('info-section').style.display = 'none';
+
+                    // Busca postos próximos
+                    buscarLocaisProximos(results[0].geometry.location);
+                } else {
+                    alert('Geocodificação falhou por causa de: ' + status);
+                }
+            });
+        }
+
+        function calcularDistancia(lat1, lng1, lat2, lng2) {
+            const R = 6371; // Tranforma latitude em km
+            const dLat = (lat2 - lat1) * (Math.PI / 180);
+            const dLng = (lng2 - lng1) * (Math.PI / 180);
+            const a = 
+                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+                Math.sin(dLng / 2) * Math.sin(dLng / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c; // Distância em km
+        }
+
+        function buscarLocaisProximos(location) {
+    const postosDeColeta = [
+        { nome: "Posto 1", endereco: "R. Tiriva, 420", lat: -25.399539, lng: -49.186471 },
+        { nome: "Posto 2", endereco: "R. Marginal Paraguai, 540", lat: -25.402131, lng: -49.170614 }
+    ];
+
+    const outputDiv = document.getElementById("output");
+    outputDiv.innerHTML = ""; // Limpa saída anterior
+    const ul = document.createElement("ul");
+
+    const raio = 5; // Raio de busca em km
+
+    postosDeColeta.forEach(posto => {
+        const distancia = calcularDistancia(location.lat(), location.lng(), posto.lat, posto.lng);
+        if (distancia <= raio) {
+            const li = document.createElement("li");
+            li.textContent = `${posto.nome} - ${posto.endereco} (Distância: ${distancia.toFixed(2)} km)`;
+            ul.appendChild(li);
+        }
+    });
+
+    if (ul.childElementCount > 0) {
+        outputDiv.appendChild(ul);
+        document.getElementById("postos-title").style.display = "block";
+
+        // Remover a classe hidden para exibir a lista de postos
+        document.querySelector('.locations').classList.remove('hidden');
+    } else {
+        alert("Não há postos de coleta dentro do raio de 5 km.");
+        document.getElementById("postos-title").style.display = "none";
+
+        // Seção de informações se não houver resultados
+        document.getElementById('info-section').style.display = 'block';
+
+        // Mantem.locations oculta se não houver postos
+        document.querySelector('.locations').classList.add('hidden');
+    }
+}
+    </script>
+
+    <!-- valor da chave API -->
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyChYIWdZRvHkfYMjzuKmTEf6M8VAnbWBso&callback=initMap"></script>
+</body>
+</html>
